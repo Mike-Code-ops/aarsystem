@@ -77,13 +77,13 @@ export class GameScene {
     return { a, b, correct, options: Array.from(options).sort(() => Math.random() - 0.5) }
   }
 
-  private makeTargetTexture(text: string): THREE.CanvasTexture {
+  private makeTargetTexture(text: string, bgColor: string = '#ffffff'): THREE.CanvasTexture {
     const canvas = document.createElement('canvas')
     canvas.width = 256
     canvas.height = 256
     const ctx = canvas.getContext('2d')!
 
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = bgColor
     ctx.beginPath()
     ctx.arc(128, 128, 128, 0, Math.PI * 2)
     ctx.fill()
@@ -243,7 +243,17 @@ export class GameScene {
     this.locked = true
     this.showFeedback(isCorrect)
 
+    const material = hit.material as THREE.MeshBasicMaterial
+    const originalMap = material.map
+    const feedbackTexture = this.makeTargetTexture(String(answer), isCorrect ? '#27ae60' : '#e74c3c')
+    material.map = feedbackTexture
+    material.needsUpdate = true
+
     setTimeout(() => {
+      material.map = originalMap
+      material.needsUpdate = true
+      feedbackTexture.dispose()
+
       this.nextExercise()
     }, 1200)
   }
