@@ -65,9 +65,9 @@ export class WelcomeScene {
       cursor: pointer;
     `
     btn.onclick = () => {
-      btn.remove()
-      this.onStart()
-    }
+  this.dispose()
+  this.onStart()
+}
     document.body.appendChild(btn)
 
     // Título en HTML (overlay)
@@ -87,7 +87,7 @@ export class WelcomeScene {
     document.body.appendChild(title)
 
     // Guardamos referencias para limpiar después
-    ;(this as any)._uiElements = [btn, title]
+    ;(this as any)._uiElements = [title, btn]
   }
 
   private handleResize() {
