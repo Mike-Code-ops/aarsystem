@@ -1,24 +1,26 @@
 import * as THREE from 'three'
+import { WelcomeScene } from './scenes/WelcomeScene'
 
-const scene = new THREE.Scene()
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 const renderer = new THREE.WebGLRenderer({ antialias: true })
-
 renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setPixelRatio(window.devicePixelRatio)
 document.body.appendChild(renderer.domElement)
 
-camera.position.z = 5
+// Estilos base
+document.body.style.cssText = 'margin:0; overflow:hidden; background:#000;'
 
-const geometry = new THREE.BoxGeometry()
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-const cube = new THREE.Mesh(geometry, material)
-scene.add(cube)
+let currentScene: WelcomeScene
+
+function startGame() {
+  console.log('Arrancando juego...')
+  // Aquí después cargamos la siguiente escena
+}
+
+currentScene = new WelcomeScene(renderer, startGame)
 
 function animate() {
   requestAnimationFrame(animate)
-  cube.rotation.x += 0.01
-  cube.rotation.y += 0.01
-  renderer.render(scene, camera)
+  currentScene.render()
 }
 
 animate()
