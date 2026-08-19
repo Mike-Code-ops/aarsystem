@@ -22,12 +22,20 @@ export class GameScene {
   private crosshair!: HTMLElement
   private feedbackEl!: HTMLElement
   private panelEl!: HTMLElement
+  private scoreEl!: HTMLElement
+  private exitBtn!: HTMLElement
+  private resultsEl?: HTMLElement
   private locked = false
   private clickListenerTimeout?: number
+  private score = 0
+  private errors = 0
+  private questionIndex = 0
+  private onExit: () => void
 
-  constructor(renderer: THREE.WebGLRenderer, operation: Operation) {
+  constructor(renderer: THREE.WebGLRenderer, operation: Operation, onExit: () => void) {
     this.renderer = renderer
     this.operation = operation
+    this.onExit = onExit
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
     this.camera.position.set(0, 1.6, 6)
@@ -206,6 +214,64 @@ export class GameScene {
     `
     document.body.appendChild(this.feedbackEl)
     this.uiElements.push(this.feedbackEl)
+
+    // Contador de aciertos/errores
+    this.scoreEl = document.createElement('div')
+    this.scoreEl.style.cssText = `
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      font-family: sans-serif;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #fff;
+      background: rgba(0,0,0,0.4);
+      padding: 8px 16px;
+      border-radius: 8px;
+      pointer-events: none;
+    `
+    document.body.appendChild(this.scoreEl)
+    this.uiElements.push(this.scoreEl)
+    this.updateScoreUI()
+
+    // Botón de salida
+    this.exitBtn = document.createElement('button')
+    this.exitBtn.innerText = '←'
+    this.exitBtn.style.cssText = `
+      position: fixed;
+      top: 16px;
+      left: 20px;
+      width: 44px;
+      height: 44px;
+      font-size: 1.4rem;
+      font-family: sans-serif;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.4);
+      color: #fff;
+      cursor: pointer;
+    `
+    this.exitBtn.addEventListener('click', this.onExitClick)
+    document.body.appendChild(this.exitBtn)
+    this.uiElements.push(this.exitBtn)
+  }
+
+  private updateScoreUI() {
+    this.scoreEl.innerText = `✓ ${this.score} | ✗ ${this.errors}`
+  }
+
+  private onExitClick = (event: MouseEvent) => {
+    // Evita que este click también llegue al listener global de raycasting.
+    event.stopPropagation()
+    this.locked = true
+
+    const confirmed = window.confirm('¿Quieres cancelar la sesión actual?')
+    if (confirmed) {
+      this.dispose()
+      this.onExit()
+    } else {
+      this.locked = false
+    }
   }
 
   private handleMouseMove() {
@@ -243,6 +309,14 @@ export class GameScene {
     this.locked = true
     this.showFeedback(isCorrect)
 
+    if (isCorrect) {
+      this.score++
+    } else {
+      this.errors++
+    }
+    this.updateScoreUI()
+    this.questionIndex++
+
     const material = hit.material as THREE.MeshBasicMaterial
     const originalMap = material.map
     const feedbackTexture = this.makeTargetTexture(String(answer), isCorrect ? '#27ae60' : '#e74c3c')
@@ -254,7 +328,11 @@ export class GameScene {
       material.needsUpdate = true
       feedbackTexture.dispose()
 
-      this.nextExercise()
+      if (this.questionIndex >= 10) {
+        this.showResults()
+      } else {
+        this.nextExercise()
+      }
     }, 1200)
   }
 
@@ -287,6 +365,71 @@ export class GameScene {
 
     this.feedbackEl.style.opacity = '0'
     this.locked = false
+  }
+
+  private showResults() {
+    // Limpiar la escena 3D (dianas y pedestales)
+    this.targets.forEach(t => this.scene.remove(t))
+    this.targets = []
+    this.scene.clear()
+
+    this.panelEl.style.display = 'none'
+    this.feedbackEl.style.opacity = '0'
+
+    this.resultsEl = document.createElement('div')
+    this.resultsEl.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: sans-serif;
+      z-index: 20;
+    `
+    this.resultsEl.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:32px 48px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);min-width:280px;">
+        <h2 style="margin:0 0 16px;color:#222;">Sesión completada</h2>
+        <div style="font-size:1.5rem;font-weight:bold;margin-bottom:24px;">
+          <span style="color:#27ae60;">✓ ${this.score}</span>
+          &nbsp;|&nbsp;
+          <span style="color:#c0392b;">✗ ${this.errors}</span>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button id="btn-replay" style="padding:10px 20px;border:none;border-radius:8px;background:#3498db;color:#fff;font-size:1rem;cursor:pointer;">Jugar de nuevo</button>
+          <button id="btn-change-op" style="padding:10px 20px;border:none;border-radius:8px;background:#95a5a6;color:#fff;font-size:1rem;cursor:pointer;">Cambiar operación</button>
+        </div>
+      </div>
+    `
+    document.body.appendChild(this.resultsEl)
+    this.uiElements.push(this.resultsEl)
+
+    const replayBtn = this.resultsEl.querySelector('#btn-replay') as HTMLButtonElement
+    const changeOpBtn = this.resultsEl.querySelector('#btn-change-op') as HTMLButtonElement
+
+    replayBtn.addEventListener('click', (event) => {
+      event.stopPropagation()
+      this.restartSession()
+    })
+
+    changeOpBtn.addEventListener('click', (event) => {
+      event.stopPropagation()
+      this.dispose()
+      this.onExit()
+    })
+  }
+
+  private restartSession() {
+    this.resultsEl?.remove()
+    this.resultsEl = undefined
+    this.panelEl.style.display = ''
+
+    this.score = 0
+    this.errors = 0
+    this.questionIndex = 0
+    this.updateScoreUI()
+
+    this.nextExercise()
   }
 
   private handleResize() {

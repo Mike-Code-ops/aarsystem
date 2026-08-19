@@ -14,7 +14,7 @@ type SceneWrapper = { render: () => void; dispose: () => void }
 let currentScene: SceneWrapper
 
 function goToGame(op: 'addition' | 'subtraction' | 'multiplication' | 'division') {
-  currentScene = new GameScene(renderer, op)
+  currentScene = new GameScene(renderer, op, goToOperationSelect)
 }
 
 function goToOperationSelect() {
