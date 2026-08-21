@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { TouchController } from '../controllers/TouchController'
 
 type Operation = 'addition' | 'subtraction' | 'multiplication' | 'division'
 
@@ -25,6 +26,7 @@ export class GameScene {
   private scoreEl!: HTMLElement
   private exitBtn!: HTMLElement
   private resultsEl?: HTMLElement
+  private touchController!: TouchController
   private locked = false
   private clickListenerTimeout?: number
   private score = 0
@@ -45,6 +47,7 @@ export class GameScene {
     this.buildUI()
     this.handleResize()
     this.handleMouseMove()
+    this.touchController = new TouchController(() => this.onClick())
     this.handleClick()
   }
 
@@ -297,7 +300,11 @@ export class GameScene {
   private onClick = () => {
     if (this.locked) return
 
-    this.raycaster.setFromCamera(this.mouse, this.camera)
+    const aim = this.touchController.isMobile
+      ? new THREE.Vector2(this.touchController.aimX, this.touchController.aimY)
+      : this.mouse
+
+    this.raycaster.setFromCamera(aim, this.camera)
     const hits = this.raycaster.intersectObjects(this.targets)
 
     if (hits.length === 0) return
@@ -450,6 +457,7 @@ export class GameScene {
     }
     window.removeEventListener('click', this.onClick)
     window.removeEventListener('mousemove', this.onMouseMove)
+    this.touchController.dispose()
     this.uiElements.forEach(el => el.remove())
   }
 }
